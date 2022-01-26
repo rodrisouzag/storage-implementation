@@ -1,6 +1,7 @@
 package products
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"testing"
@@ -70,4 +71,41 @@ func TestGetByName(t *testing.T) {
 	arroz := repo.GetByName("Arroz")
 
 	assert.Equal(t, expected, arroz)
+}
+
+func TestGetAll(t *testing.T) {
+	Init()
+	defer Close()
+	p1 := models.Product{
+		ID:       1,
+		Name:     "Arroz",
+		Category: "Alimentos",
+		Count:    20,
+		Price:    50.0,
+	}
+	var expected []models.Product
+	expected = append(expected, p1)
+	repo := NewRepo(StorageDB)
+	result, err := repo.GetAll()
+
+	assert.Equal(t, expected, result)
+	assert.NoError(t, err)
+}
+
+func TestUpdateWithContext(t *testing.T) {
+	Init()
+	defer Close()
+	p1 := models.Product{
+		ID:       1,
+		Name:     "Pan",
+		Category: "Alimentos",
+		Count:    100,
+		Price:    120.5,
+	}
+
+	repo := NewRepo(StorageDB)
+	result, err := repo.UpdateWithContext(context.Background(), p1)
+
+	assert.Equal(t, p1, result)
+	assert.NoError(t, err)
 }
