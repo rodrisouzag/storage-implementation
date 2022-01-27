@@ -11,15 +11,19 @@ import (
 const (
 	GetAllProducts = "SELECT id, name, category, count, price FROM products"
 	GetByName      = "SELECT id, name, category, count, price FROM products WHERE name = ?"
+	GetOne         = "SELECT p.id, p.name, p.category, p.count, p.price FROM products p WHERE p.id = ?"
 	StoreProduct   = "INSERT INTO products(name, category, count, price) VALUES( ?, ?, ?, ? )"
 	UpdateProduct  = "UPDATE products SET name = ?, category = ?, count = ?, price = ? WHERE id = ?"
+	DeleteProduct  = "DELETE FROM products WHERE id = ?"
 )
 
 type Repository interface {
-	GetByName(name string) models.Product
-	Store(product models.Product) (models.Product, error)
 	GetAll() ([]models.Product, error)
+	GetByName(name string) models.Product
+	GetOneWithContext(ctx context.Context, id int) (models.Product, error)
+	Store(product models.Product) (models.Product, error)
 	UpdateWithContext(ctx context.Context, product models.Product) (models.Product, error)
+	Delete(id int) error
 }
 
 type repository struct {
@@ -100,4 +104,37 @@ func (r *repository) UpdateWithContext(ctx context.Context, product models.Produ
 		return models.Product{}, err
 	}
 	return product, nil
+}
+
+func (r *repository) GetOneWithContext(ctx context.Context, id int) (models.Product, error) {
+	var product models.Product
+	db := r.db
+
+	// ya no se usa db.Query sino db.QueryContext
+	rows, err := db.QueryContext(ctx, GetOne, id)
+	if err != nil {
+		log.Println(err)
+		return product, err
+	}
+	for rows.Next() {
+		if err := rows.Scan(&product.ID, &product.Name, &product.Category, &product.Count, &product.Price); err != nil {
+			log.Fatal(err)
+			return product, err
+		}
+	}
+	return product, nil
+}
+
+func (r *repository) Delete(id int) error {
+	db := r.db                             // se inicializa la base
+	stmt, err := db.Prepare(DeleteProduct) // se prepara la sentencia SQL a ejecutar
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()     // se cierra la sentencia al terminar. Si quedan abiertas se genera consumos de memoria
+	_, err = stmt.Exec(id) // retorna un sql.Result y un error
+	if err != nil {
+		return err
+	}
+	return nil
 }
